@@ -52,7 +52,6 @@ int main(void) {
     const int num_threads = 20000;
     const int elems_per_thread = 5000;
     const size_t n = (size_t)num_threads * (size_t)elems_per_thread;
-    const int block_size = 256;
 
     float* h_in = (float*)malloc(n * sizeof(float));
     float* h_out = (float*)malloc((size_t)num_threads * sizeof(float));
@@ -69,13 +68,32 @@ int main(void) {
     CHECK_CUDA(cudaMalloc((void**)&d_out, (size_t)num_threads * sizeof(float)));
     CHECK_CUDA(cudaMemcpy(d_in, h_in, n * sizeof(float), cudaMemcpyHostToDevice));
 
-    float ms_a = runKernelContiguous(d_in, d_out, n, elems_per_thread, num_threads, block_size);
-    CHECK_CUDA(cudaMemcpy(h_out, d_out, (size_t)num_threads * sizeof(float), cudaMemcpyDeviceToHost));
-    printf("Variant A (contiguous) ms: %.3f\n", ms_a);
+    for (int k = 0; ; ++k) {
+        int block_size = 32;
+        for (int i = 0; i < k; ++i) {
+            block_size *= 5;
+        }
+        if (block_size > 1024) {
+            break;
+        }
 
-    float ms_b = runKernelStrided(d_in, d_out, n, elems_per_thread, num_threads, block_size);
-    CHECK_CUDA(cudaMemcpy(h_out, d_out, (size_t)num_threads * sizeof(float), cudaMemcpyDeviceToHost));
-    printf("Variant B (strided)    ms: %.3f\n", ms_b);
+        // Warmup run (not timed) to avoid JIT/cold-start effects.
+        int grid = (num_threads + block_size - 1) / block_size;
+        kernel_contiguous<<<grid, block_size>>>(d_in, d_out, n, elems_per_thread, num_threads);
+        CHECK_CUDA(cudaGetLastError());
+        CHECK_CUDA(cudaDeviceSynchronize());
+        kernel_strided<<<grid, block_size>>>(d_in, d_out, n, elems_per_thread, num_threads);
+        CHECK_CUDA(cudaGetLastError());
+        CHECK_CUDA(cudaDeviceSynchronize());
+
+        float ms_a = runKernelContiguous(d_in, d_out, n, elems_per_thread, num_threads, block_size);
+        CHECK_CUDA(cudaMemcpy(h_out, d_out, (size_t)num_threads * sizeof(float), cudaMemcpyDeviceToHost));
+        printf("k=%d block_size=%d Variant A (contiguous) ms: %.3f\n", k, block_size, ms_a);
+
+        float ms_b = runKernelStrided(d_in, d_out, n, elems_per_thread, num_threads, block_size);
+        CHECK_CUDA(cudaMemcpy(h_out, d_out, (size_t)num_threads * sizeof(float), cudaMemcpyDeviceToHost));
+        printf("k=%d block_size=%d Variant B (strided)    ms: %.3f\n", k, block_size, ms_b);
+    }
 
     CHECK_CUDA(cudaFree(d_out));
     CHECK_CUDA(cudaFree(d_in));
