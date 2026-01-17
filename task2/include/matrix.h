@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+// Hilfsfunktionen fuer Matrix/Vektor im Vollformat.
+
 float* matrix_alloc(size_t n);
 float* vector_alloc(size_t n);
 void matrix_init_upper(float* a, size_t n);

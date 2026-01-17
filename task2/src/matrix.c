@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 float* matrix_alloc(size_t n) {
+    // Volle NxN-Matrix (einfachstes Layout).
     return (float*)malloc(n * n * sizeof(float));
 }
 
@@ -11,6 +12,7 @@ float* vector_alloc(size_t n) {
 }
 
 void matrix_init_upper(float* a, size_t n) {
+    // Untere Dreieckshaelfte auf 0, Rest zufaellig.
     for (size_t i = 0; i < n; ++i) {
         for (size_t j = 0; j < n; ++j) {
             if (j < i) {

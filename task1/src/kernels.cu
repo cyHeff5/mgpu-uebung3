@@ -1,4 +1,4 @@
-#include "kernels.cuh"
+#include "../include/kernels.cuh"
 
 __global__ void kernel_contiguous(const float* input,
                                   float* output,
@@ -10,6 +10,7 @@ __global__ void kernel_contiguous(const float* input,
         return;
     }
 
+    // Jeder Thread bearbeitet einen zusammenhaengenden Block.
     size_t start = (size_t)tid * (size_t)elems_per_thread;
     size_t end = start + (size_t)elems_per_thread;
     if (end > n) {
@@ -36,6 +37,7 @@ __global__ void kernel_strided(const float* input,
     float sum = 0.0f;
     size_t stride = (size_t)num_threads;
     size_t idx = (size_t)tid;
+    // Strided Zugriff: Elemente mit Abstand num_threads.
     for (int j = 0; j < elems_per_thread; ++j) {
         size_t i = idx + (size_t)j * stride;
         if (i >= n) {

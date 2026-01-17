@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <cuda_runtime.h>
 
@@ -34,6 +35,8 @@ int main(int argc, char** argv) {
     }
 
     int block_size = 256;
+    // Jede Messung mehrfach ausfuehren, damit der Mittelwert stabiler ist.
+    const int repeats = 5;
     if (argc >= 3) {
         block_size = atoi(argv[2]);
         if (block_size <= 0) {
@@ -74,22 +77,33 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    if (!timer_start(&t)) {
-        fprintf(stderr, "Timer start failed\n");
-        return 1;
+    double mean = 0.0;
+    double m2 = 0.0;
+    for (int r = 0; r < repeats; ++r) {
+        if (!timer_start(&t)) {
+            fprintf(stderr, "Timer start failed\n");
+            return 1;
+        }
+        matvec_upper<<<grid, block_size>>>(d_a, d_x, d_y, n);
+        CHECK_CUDA(cudaGetLastError());
+        float ms = timer_stop_ms(&t);
+        if (ms < 0.0f) {
+            fprintf(stderr, "Timer stop failed\n");
+            return 1;
+        }
+        double delta = (double)ms - mean;
+        mean += delta / (double)(r + 1);
+        double delta2 = (double)ms - mean;
+        m2 += delta * delta2;
     }
-    matvec_upper<<<grid, block_size>>>(d_a, d_x, d_y, n);
-    CHECK_CUDA(cudaGetLastError());
-    float ms = timer_stop_ms(&t);
-    if (ms < 0.0f) {
-        fprintf(stderr, "Timer stop failed\n");
-        return 1;
-    }
+    double variance = (repeats > 1) ? (m2 / (double)(repeats - 1)) : 0.0;
+    float ms = (float)mean;
+    float std_ms = (float)sqrt(variance);
 
     CHECK_CUDA(cudaMemcpy(h_y, d_y, bytes_v, cudaMemcpyDeviceToHost));
 
     printf("N=%d block_size=%d\n", n, block_size);
-    printf("CUDA kernel time: %.3f ms\n", ms);
+    printf("CUDA kernel time: %.3f ms +/- %.3f\n", ms, std_ms);
 
     timer_destroy(&t);
     CHECK_CUDA(cudaFree(d_y));

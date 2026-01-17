@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 static int try_alloc(size_t n) {
+    // Ueberlaufpruefungen fuer n*n und Bytegroesse.
     if (n > SIZE_MAX / n) {
         return 0;
     }
@@ -17,6 +18,7 @@ static int try_alloc(size_t n) {
     if (!buf) {
         return 0;
     }
+    // Erste und letzte Stelle anfassen, damit der Speicher committed wird.
     buf[0] = 0.0f;
     buf[elems - 1] = 1.0f;
     free(buf);
