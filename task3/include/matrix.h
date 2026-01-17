@@ -1,7 +1,11 @@
-#ifndef TASK2_MATRIX_H
-#define TASK2_MATRIX_H
+#ifndef TASK3_MATRIX_H
+#define TASK3_MATRIX_H
 
 #include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 float* matrix_alloc(size_t n);
 float* vector_alloc(size_t n);
@@ -10,4 +14,8 @@ void vector_init(float* x, size_t n);
 void matrix_free(float* a);
 void vector_free(float* x);
 
-#endif  // TASK2_MATRIX_H
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // TASK3_MATRIX_H
