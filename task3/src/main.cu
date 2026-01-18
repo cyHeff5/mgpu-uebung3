@@ -22,6 +22,10 @@ static void usage(const char* prog) {
     printf("Usage: %s N [block_size]\n", prog);
 }
 
+static int is_pow2(int v) {
+    return v > 0 && (v & (v - 1)) == 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) {
         usage(argv[0]);
@@ -42,6 +46,10 @@ int main(int argc, char** argv) {
         if (block_size <= 0) {
             block_size = 256;
         }
+    }
+    if (!is_pow2(block_size)) {
+        printf("Block size %d ist keine Zweierpotenz, setze 256.\n", block_size);
+        block_size = 256;
     }
 
     float* h_a = matrix_alloc((size_t)n);
@@ -69,7 +77,7 @@ int main(int argc, char** argv) {
     CHECK_CUDA(cudaMemcpy(d_a, h_a, bytes_a, cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_x, h_x, bytes_v, cudaMemcpyHostToDevice));
 
-    int grid = (n + block_size - 1) / block_size;
+    int grid = n;
 
     CudaTimer t;
     if (!timer_create(&t)) {
@@ -84,7 +92,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Timer start failed\n");
             return 1;
         }
-        matvec_upper<<<grid, block_size>>>(d_a, d_x, d_y, n);
+        matvec_upper<<<grid, block_size, block_size * sizeof(float)>>>(d_a, d_x, d_y, n);
         CHECK_CUDA(cudaGetLastError());
         float ms = timer_stop_ms(&t);
         if (ms < 0.0f) {

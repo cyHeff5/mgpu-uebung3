@@ -1,15 +1,29 @@
 #include "kernels.cuh"
 
 __global__ void matvec_upper(const float* a, const float* x, float* y, int n) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i >= n) {
+    int row = blockIdx.x;
+    if (row >= n) {
         return;
     }
 
     float sum = 0.0f;
-    int row = i * n;
-    for (int j = i; j < n; ++j) {
-        sum += a[row + j] * x[j];
+    int base = row * n;
+    for (int j = row + threadIdx.x; j < n; j += blockDim.x) {
+        sum += a[base + j] * x[j];
     }
-    y[i] = sum;
+
+    extern __shared__ float sdata[];
+    sdata[threadIdx.x] = sum;
+    __syncthreads();
+
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (threadIdx.x < stride) {
+            sdata[threadIdx.x] += sdata[threadIdx.x + stride];
+        }
+        __syncthreads();
+    }
+
+    if (threadIdx.x == 0) {
+        y[row] = sdata[0];
+    }
 }
