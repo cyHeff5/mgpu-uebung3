@@ -82,10 +82,14 @@ int main(int argc, char** argv) {
     double seq_std = (repeats > 1) ? sqrt(seq_m2 / (double)(repeats - 1)) : 0.0;
     double omp_std = (repeats > 1) ? sqrt(omp_m2 / (double)(repeats - 1)) : 0.0;
     double speedup = seq_s / omp_s;
+    double seq_ms = seq_s * 1000.0;
+    double omp_ms = omp_s * 1000.0;
+    double seq_std_ms = seq_std * 1000.0;
+    double omp_std_ms = omp_std * 1000.0;
 
     printf("N=%zu threads=%d\n", n, num_threads);
-    printf("Sequential: %.6f s +/- %.6f\n", seq_s, seq_std);
-    printf("OpenMP:     %.6f s +/- %.6f\n", omp_s, omp_std);
+    printf("Sequential: %.3f ms +/- %.3f\n", seq_ms, seq_std_ms);
+    printf("OpenMP:     %.3f ms +/- %.3f\n", omp_ms, omp_std_ms);
     printf("Speedup:    %.3f\n", speedup);
 
     matrix_free(a);
