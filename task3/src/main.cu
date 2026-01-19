@@ -4,19 +4,10 @@
 
 #include <cuda_runtime.h>
 
+#include "cuda_utils.cuh"
 #include "kernels.cuh"
 #include "matrix.h"
-#include "timer.h"
-
-#define CHECK_CUDA(call)                                                     \
-    do {                                                                     \
-        cudaError_t err__ = (call);                                          \
-        if (err__ != cudaSuccess) {                                          \
-            fprintf(stderr, "CUDA error %s at %s:%d\n",                      \
-                    cudaGetErrorString(err__), __FILE__, __LINE__);          \
-            return 1;                                                        \
-        }                                                                    \
-    } while (0)
+#include "timer.cuh"
 
 static void usage(const char* prog) {
     printf("Usage: %s N [block_size]\n", prog);
@@ -52,6 +43,7 @@ int main(int argc, char** argv) {
         block_size = 256;
     }
 
+    // Host-Speicher fuer Matrix und Vektoren.
     float* h_a = matrix_alloc((size_t)n);
     float* h_x = vector_alloc((size_t)n);
     float* h_y = vector_alloc((size_t)n);
@@ -66,6 +58,7 @@ int main(int argc, char** argv) {
     matrix_init_upper(h_a, (size_t)n);
     vector_init(h_x, (size_t)n);
 
+    // Device-Speicher anlegen und Daten kopieren.
     float* d_a = NULL;
     float* d_x = NULL;
     float* d_y = NULL;
@@ -77,6 +70,7 @@ int main(int argc, char** argv) {
     CHECK_CUDA(cudaMemcpy(d_a, h_a, bytes_a, cudaMemcpyHostToDevice));
     CHECK_CUDA(cudaMemcpy(d_x, h_x, bytes_v, cudaMemcpyHostToDevice));
 
+    // Ein Block pro Zeile.
     int grid = n;
 
     CudaTimer t;
@@ -92,6 +86,7 @@ int main(int argc, char** argv) {
             fprintf(stderr, "Timer start failed\n");
             return 1;
         }
+        // Shared-Memory-Groesse: eine Float-Summe pro Thread.
         matvec_upper<<<grid, block_size, block_size * sizeof(float)>>>(d_a, d_x, d_y, n);
         CHECK_CUDA(cudaGetLastError());
         float ms = timer_stop_ms(&t);
